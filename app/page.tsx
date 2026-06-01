@@ -5,13 +5,11 @@ import { createClient } from "@/lib/supabase-browser";
 import {
   createDictation,
   getDictationsWithContacts,
-  getContacts,
   getContactsWithDetails,
   createContactAndLink,
   linkContactToDictation,
 } from "@/lib/queries";
 import type {
-  Contact,
   DictationWithContacts,
   ContactWithDetails,
   TriageItem,
@@ -28,7 +26,7 @@ type Tab = "dictations" | "contacts";
 export default function HomePage() {
   const [tab, setTab] = useState<Tab>("dictations");
   const [dictations, setDictations] = useState<DictationWithContacts[]>([]);
-  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [contacts, setContacts] = useState<ContactWithDetails[]>([]);
   const [contactsWithDetails, setContactsWithDetails] = useState<ContactWithDetails[]>([]);
   const [triageQueue, setTriageQueue] = useState<TriageItem[]>([]);
   const [showLogin, setShowLogin] = useState(false);
@@ -55,18 +53,23 @@ export default function HomePage() {
   }, []);
 
   // ── Load data ──────────────────────────────────────────────────────────────
-  const refresh = useCallback(async () => {
-    const [dicts, ctcts, ctctsDetail] = await Promise.all([
-      getDictationsWithContacts(),
-      getContacts(),
-      getContactsWithDetails(),
-    ]);
-    setDictations(dicts);
-    setContacts(ctcts);
-    setContactsWithDetails(ctctsDetail);
-  }, []);
+  const refresh = useCallback(async (activeTab: Tab = tab) => {
+    if (activeTab === "dictations") {
+      const [dicts, ctctsDetail] = await Promise.all([
+        getDictationsWithContacts(),
+        getContactsWithDetails(),
+      ]);
+      setDictations(dicts);
+      setContactsWithDetails(ctctsDetail);
+      setContacts(ctctsDetail);
+    } else {
+      const ctctsDetail = await getContactsWithDetails();
+      setContactsWithDetails(ctctsDetail);
+      setContacts(ctctsDetail);
+    }
+  }, [tab]);
 
-  useEffect(() => { refresh(); }, [refresh]);
+  useEffect(() => { refresh(tab); }, [tab]);
 
   // ── Deferred login: prompt after first completed triage ────────────────────
   function maybePromptLogin() {
@@ -79,7 +82,7 @@ export default function HomePage() {
   // ── Recording complete ─────────────────────────────────────────────────────
   async function handleTranscription(transcript: string, detectedNames: string[]) {
     const dictation = await createDictation(transcript);
-    await refresh();
+    await refresh("dictations");
 
     if (detectedNames.length > 0) {
       setTriageQueue((prev) => [
@@ -111,7 +114,7 @@ export default function HomePage() {
 
   function advanceTriage() {
     setTriageQueue((prev) => prev.slice(1));
-    refresh();
+    refresh("dictations");
     maybePromptLogin();
   }
 
