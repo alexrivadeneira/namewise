@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import type { ContactWithDetails } from "@/lib/types";
 
 interface ContactCardProps {
@@ -13,6 +14,26 @@ function formatDate(iso: string) {
 }
 
 export default function ContactCard({ contact }: ContactCardProps) {
+  const [summary, setSummary] = useState<string | null>(null);
+  const [loadingSummary, setLoadingSummary] = useState(false);
+
+  useEffect(() => {
+    if (contact.dictations.length === 0) return;
+    setLoadingSummary(true);
+    fetch("/api/contact-summary", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contactName: contact.name,
+        dictations: contact.dictations.map((d) => ({ text: d.text, created_at: d.created_at })),
+      }),
+    })
+      .then((r) => r.json())
+      .then((data) => setSummary(data.summary ?? null))
+      .catch(() => setSummary(null))
+      .finally(() => setLoadingSummary(false));
+  }, [contact.id]);
+
   return (
     <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
       <div className="flex items-start justify-between mb-2">
@@ -29,6 +50,16 @@ export default function ContactCard({ contact }: ContactCardProps) {
               {a.name}
             </span>
           ))}
+        </div>
+      )}
+
+      {(loadingSummary || summary) && (
+        <div className="bg-indigo-50 border border-indigo-100 rounded-lg px-3 py-2 mb-3 text-sm text-indigo-800">
+          {loadingSummary ? (
+            <span className="text-indigo-400 italic">Summarizing relationship…</span>
+          ) : (
+            summary
+          )}
         </div>
       )}
 
