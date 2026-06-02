@@ -6,6 +6,7 @@ import {
   createDictation,
   getDictationsWithContacts,
   getContactsWithDetails,
+  getContactByName,
   createContactAndLink,
   linkContactToDictation,
 } from "@/lib/queries";
@@ -19,6 +20,7 @@ import RecordButton from "@/components/RecordButton";
 import TriageCard from "@/components/TriageCard";
 import DictationCard from "@/components/DictationCard";
 import ContactCard from "@/components/ContactCard";
+import BriefingCard from "@/components/BriefingCard";
 import LoginModal from "@/components/LoginModal";
 
 type Tab = "dictations" | "contacts";
@@ -31,6 +33,7 @@ export default function HomePage() {
   const [triageQueue, setTriageQueue] = useState<TriageItem[]>([]);
   const [showLogin, setShowLogin] = useState(false);
   const [isAnon, setIsAnon] = useState(true);
+  const [briefing, setBriefing] = useState<{ contactName: string; bullets: string[] } | null>(null);
   const actionCountRef = useRef(0);
 
   // ── Auth: ensure anonymous session exists ──────────────────────────────────
@@ -80,7 +83,33 @@ export default function HomePage() {
   }
 
   // ── Recording complete ─────────────────────────────────────────────────────
-  async function handleTranscription(transcript: string, detectedNames: string[]) {
+  async function handleTranscription(
+    transcript: string,
+    detectedNames: string[],
+    intent: string,
+    queryName: string | null
+  ) {
+    // ── Query intent: show briefing, don't save ──────────────────────────────
+    if (intent === "query" && queryName) {
+      const contact = await getContactByName(queryName);
+      if (!contact || contact.dictations.length === 0) {
+        setBriefing({ contactName: queryName, bullets: [] });
+        return;
+      }
+      const res = await fetch("/api/contact-briefing", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contactName: contact.name,
+          dictations: contact.dictations.map((d) => ({ text: d.text, created_at: d.created_at })),
+        }),
+      });
+      const data = await res.json();
+      setBriefing({ contactName: contact.name, bullets: data.bullets ?? [] });
+      return;
+    }
+
+    // ── Dictation intent: save and triage as before ──────────────────────────
     const dictation = await createDictation(transcript);
     await refresh("dictations");
 
@@ -144,6 +173,15 @@ export default function HomePage() {
           disabled={!!currentTriage}
         />
       </div>
+
+      {/* Briefing card */}
+      {briefing && (
+        <BriefingCard
+          contactName={briefing.contactName}
+          bullets={briefing.bullets}
+          onDismiss={() => setBriefing(null)}
+        />
+      )}
 
       {/* Triage card (only shows the current item) */}
       {currentTriage && (

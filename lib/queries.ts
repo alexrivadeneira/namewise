@@ -110,6 +110,38 @@ export async function getContactsWithDetails(): Promise<ContactWithDetails[]> {
   }));
 }
 
+export async function getContactByName(name: string): Promise<ContactWithDetails | null> {
+  const supabase = createClient();
+
+  const { data: contacts } = await supabase
+    .from("contacts")
+    .select("*");
+
+  const match = (contacts ?? []).find(
+    (c) => c.name.toLowerCase() === name.toLowerCase()
+  );
+  if (!match) return null;
+
+  const { data: dictLinks } = await supabase
+    .from("contacts_dictations")
+    .select("contact_id, dictations(*)")
+    .eq("contact_id", match.id);
+
+  const { data: aliasLinks } = await supabase
+    .from("contacts_aliases")
+    .select("contact_id, aliases(*)")
+    .eq("contact_id", match.id);
+
+  const dictations = (dictLinks ?? [])
+    .map((l: any) => l.dictations)
+    .filter(Boolean)
+    .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+  const aliases = (aliasLinks ?? []).map((l: any) => l.aliases).filter(Boolean);
+
+  return { ...match, dictations, aliases };
+}
+
 // ─── Triage actions ───────────────────────────────────────────────────────────
 
 /** Link an existing contact to a dictation, creating an alias if needed. */
