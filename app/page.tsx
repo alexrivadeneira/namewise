@@ -109,16 +109,38 @@ export default function HomePage() {
       return;
     }
 
-    // ── Dictation intent: save and triage as before ──────────────────────────
+    // ── Dictation intent: save, auto-link known contacts, triage the rest ────
     const dictation = await createDictation(transcript);
-    await refresh("dictations");
 
     if (detectedNames.length > 0) {
-      setTriageQueue((prev) => [
-        ...prev,
-        ...detectedNames.map((name) => ({ detectedName: name, dictationId: dictation.id })),
-      ]);
+      const toTriage: string[] = [];
+
+      await Promise.all(
+        detectedNames.map(async (name) => {
+          const match = contacts.find(
+            (c) => c.name.toLowerCase() === name.toLowerCase()
+          );
+          if (match) {
+            await linkContactToDictation({
+              contactId: match.id,
+              dictationId: dictation.id,
+              detectedName: name,
+            });
+          } else {
+            toTriage.push(name);
+          }
+        })
+      );
+
+      if (toTriage.length > 0) {
+        setTriageQueue((prev) => [
+          ...prev,
+          ...toTriage.map((name) => ({ detectedName: name, dictationId: dictation.id })),
+        ]);
+      }
     }
+
+    await refresh("dictations");
   }
 
   // ── Triage: create new contact ─────────────────────────────────────────────
