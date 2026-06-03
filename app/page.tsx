@@ -106,6 +106,7 @@ export default function HomePage() {
 
   // ── Deferred login: prompt after first completed triage ────────────────────
   function maybePromptLogin() {
+    if (typeof window !== "undefined" && window.location.port === "3001") return; // disable in test env
     actionCountRef.current += 1;
     if (isAnon && actionCountRef.current === 1) {
       setShowLogin(true);
