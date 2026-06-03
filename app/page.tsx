@@ -235,7 +235,7 @@ export default function HomePage() {
     <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">Namewise</h1>
+        <img src="/namewise-logo.png" alt="Namewise" className="h-28 w-auto" />
         {isAnon && (
           <button
             onClick={() => setShowLogin(true)}
