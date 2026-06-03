@@ -7,12 +7,16 @@ import {
   getDictationsWithContacts,
   getContactsWithDetails,
   getContactByName,
+  getContactsByGroupName,
   createContactAndLink,
   linkContactToDictation,
+  getGroups,
+  createGroup,
 } from "@/lib/queries";
 import type {
   DictationWithContacts,
   ContactWithDetails,
+  Group,
   TriageItem,
 } from "@/lib/types";
 
@@ -30,10 +34,17 @@ export default function HomePage() {
   const [dictations, setDictations] = useState<DictationWithContacts[]>([]);
   const [contacts, setContacts] = useState<ContactWithDetails[]>([]);
   const [contactsWithDetails, setContactsWithDetails] = useState<ContactWithDetails[]>([]);
+  const [groups, setGroups] = useState<Group[]>([]);
   const [triageQueue, setTriageQueue] = useState<TriageItem[]>([]);
   const [showLogin, setShowLogin] = useState(false);
   const [isAnon, setIsAnon] = useState(true);
-  const [briefing, setBriefing] = useState<{ contactName: string; bullets: string[] } | null>(null);
+  const [briefing, setBriefing] = useState<{ title: string; contacts: { contactName: string; bullets: string[] }[] } | null>(null);
+
+  // ── Search & filter state ──────────────────────────────────────────────────
+  const [search, setSearch] = useState("");
+  const [activeGroupId, setActiveGroupId] = useState<string | null>(null);
+  const [newGroupName, setNewGroupName] = useState("");
+
   const actionCountRef = useRef(0);
 
   // ── Auth: ensure anonymous session exists ──────────────────────────────────
@@ -57,22 +68,41 @@ export default function HomePage() {
 
   // ── Load data ──────────────────────────────────────────────────────────────
   const refresh = useCallback(async (activeTab: Tab = tab) => {
+    const [ctctsDetail, grps] = await Promise.all([
+      getContactsWithDetails(),
+      getGroups(),
+    ]);
+    setContactsWithDetails(ctctsDetail);
+    setContacts(ctctsDetail);
+    setGroups(grps);
+
     if (activeTab === "dictations") {
-      const [dicts, ctctsDetail] = await Promise.all([
-        getDictationsWithContacts(),
-        getContactsWithDetails(),
-      ]);
+      const dicts = await getDictationsWithContacts();
       setDictations(dicts);
-      setContactsWithDetails(ctctsDetail);
-      setContacts(ctctsDetail);
-    } else {
-      const ctctsDetail = await getContactsWithDetails();
-      setContactsWithDetails(ctctsDetail);
-      setContacts(ctctsDetail);
     }
   }, [tab]);
 
   useEffect(() => { refresh(tab); }, [tab]);
+
+  // ── Filtered contacts ──────────────────────────────────────────────────────
+  const filteredContacts = contactsWithDetails.filter((c) => {
+    const q = search.toLowerCase();
+    const matchesSearch = q === "" ||
+      c.name.toLowerCase().includes(q) ||
+      (c.group?.name.toLowerCase().includes(q) ?? false);
+    const matchesGroup = activeGroupId === null || c.group?.id === activeGroupId;
+    return matchesSearch && matchesGroup;
+  });
+
+  // ── Create group ───────────────────────────────────────────────────────────
+  async function handleCreateGroup(e: React.FormEvent) {
+    e.preventDefault();
+    const name = newGroupName.trim();
+    if (!name) return;
+    await createGroup(name);
+    setNewGroupName("");
+    await refresh(tab);
+  }
 
   // ── Deferred login: prompt after first completed triage ────────────────────
   function maybePromptLogin() {
@@ -87,13 +117,14 @@ export default function HomePage() {
     transcript: string,
     detectedNames: string[],
     intent: string,
-    queryName: string | null
+    queryName: string | null,
+    queryGroup: string | null,
   ) {
-    // ── Query intent: show briefing, don't save ──────────────────────────────
-    if (intent === "query" && queryName) {
+    // ── Contact query: briefing for a single person ──────────────────────────
+    if (intent === "contact_query" && queryName) {
       const contact = await getContactByName(queryName);
       if (!contact || contact.dictations.length === 0) {
-        setBriefing({ contactName: queryName, bullets: [] });
+        setBriefing({ title: queryName, contacts: [{ contactName: queryName, bullets: [] }] });
         return;
       }
       const res = await fetch("/api/contact-briefing", {
@@ -105,7 +136,33 @@ export default function HomePage() {
         }),
       });
       const data = await res.json();
-      setBriefing({ contactName: contact.name, bullets: data.bullets ?? [] });
+      setBriefing({ title: contact.name, contacts: [{ contactName: contact.name, bullets: data.bullets ?? [] }] });
+      return;
+    }
+
+    // ── Group query: briefing for everyone in a group ────────────────────────
+    if (intent === "group_query" && queryGroup) {
+      const groupContacts = await getContactsByGroupName(queryGroup);
+      if (!groupContacts.length) {
+        setBriefing({ title: queryGroup, contacts: [] });
+        return;
+      }
+      const results = await Promise.all(
+        groupContacts.map(async (contact) => {
+          if (!contact.dictations.length) return { contactName: contact.name, bullets: [] };
+          const res = await fetch("/api/contact-briefing", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              contactName: contact.name,
+              dictations: contact.dictations.map((d) => ({ text: d.text, created_at: d.created_at })),
+            }),
+          });
+          const data = await res.json();
+          return { contactName: contact.name, bullets: data.bullets ?? [] };
+        })
+      );
+      setBriefing({ title: queryGroup, contacts: results });
       return;
     }
 
@@ -199,8 +256,8 @@ export default function HomePage() {
       {/* Briefing card */}
       {briefing && (
         <BriefingCard
-          contactName={briefing.contactName}
-          bullets={briefing.bullets}
+          title={briefing.title}
+          contacts={briefing.contacts}
           onDismiss={() => setBriefing(null)}
         />
       )}
@@ -245,13 +302,79 @@ export default function HomePage() {
           )}
         </div>
       ) : (
-        <div className="space-y-3">
-          {contactsWithDetails.length === 0 ? (
+        <div className="space-y-4">
+          {/* Search box */}
+          <input
+            type="text"
+            placeholder="Search contacts or groups…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300"
+          />
+
+          {/* Group filter chips */}
+          {groups.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => setActiveGroupId(null)}
+                className={`px-3 py-1 text-xs rounded-full border transition-colors ${
+                  activeGroupId === null
+                    ? "bg-indigo-600 text-white border-indigo-600"
+                    : "bg-white text-gray-600 border-gray-200 hover:border-indigo-300"
+                }`}
+              >
+                All
+              </button>
+              {groups.map((g) => (
+                <button
+                  key={g.id}
+                  onClick={() => setActiveGroupId(activeGroupId === g.id ? null : g.id)}
+                  className={`px-3 py-1 text-xs rounded-full border transition-colors ${
+                    activeGroupId === g.id
+                      ? "bg-indigo-600 text-white border-indigo-600"
+                      : "bg-white text-gray-600 border-gray-200 hover:border-indigo-300"
+                  }`}
+                >
+                  {g.name}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Create group */}
+          <form onSubmit={handleCreateGroup} className="flex gap-2">
+            <input
+              type="text"
+              placeholder="New group name…"
+              value={newGroupName}
+              onChange={(e) => setNewGroupName(e.target.value)}
+              className="flex-1 px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300"
+            />
+            <button
+              type="submit"
+              disabled={!newGroupName.trim()}
+              className="px-3 py-1.5 text-sm bg-indigo-600 text-white rounded-lg disabled:opacity-40 hover:bg-indigo-700 transition-colors"
+            >
+              Add group
+            </button>
+          </form>
+
+          {/* Contact cards */}
+          {filteredContacts.length === 0 ? (
             <p className="text-gray-400 text-sm text-center py-8">
-              No contacts yet. They'll appear after you mention someone in a dictation.
+              {contactsWithDetails.length === 0
+                ? "No contacts yet. They'll appear after you mention someone in a dictation."
+                : "No contacts match your search."}
             </p>
           ) : (
-            contactsWithDetails.map((c) => <ContactCard key={c.id} contact={c} />)
+            filteredContacts.map((c) => (
+              <ContactCard
+                key={c.id}
+                contact={c}
+                groups={groups}
+                onGroupChanged={() => refresh(tab)}
+              />
+            ))
           )}
         </div>
       )}

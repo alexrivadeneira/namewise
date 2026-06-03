@@ -3,6 +3,7 @@ import type {
   Contact,
   Alias,
   Dictation,
+  Group,
   DictationWithContacts,
   ContactWithDetails,
 } from "./types";
@@ -101,12 +102,104 @@ export async function getContactsWithDetails(): Promise<ContactWithDetails[]> {
     if (l.dictations) dictMap[l.contact_id].push(l.dictations as Dictation);
   });
 
+  const { data: groups } = await supabase.from("groups").select("*");
+  const groupMap: Record<string, Group> = {};
+  (groups ?? []).forEach((g: Group) => { groupMap[g.id] = g; });
+
   return (contacts ?? []).map((c) => ({
     ...c,
     aliases: aliasMap[c.id] ?? [],
     dictations: (dictMap[c.id] ?? []).sort(
       (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     ),
+    group: c.group_id ? (groupMap[c.group_id] ?? null) : null,
+  }));
+}
+
+// ─── Groups ───────────────────────────────────────────────────────────────────
+
+export async function getGroups(): Promise<Group[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("groups")
+    .select("*")
+    .order("name", { ascending: true });
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function createGroup(name: string): Promise<Group> {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+  const { data, error } = await supabase
+    .from("groups")
+    .insert({ name, user_id: user.id })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function assignContactToGroup(contactId: string, groupId: string | null): Promise<void> {
+  const supabase = createClient();
+  const { error } = await supabase
+    .from("contacts")
+    .update({ group_id: groupId })
+    .eq("id", contactId);
+  if (error) throw error;
+}
+
+export async function getContactsByGroupName(groupName: string): Promise<ContactWithDetails[]> {
+  const supabase = createClient();
+
+  const { data: groups } = await supabase
+    .from("groups")
+    .select("*");
+
+  const match = (groups ?? []).find(
+    (g: Group) => g.name.toLowerCase() === groupName.toLowerCase()
+  );
+  if (!match) return [];
+
+  const { data: contacts } = await supabase
+    .from("contacts")
+    .select("*")
+    .eq("group_id", match.id);
+
+  if (!contacts?.length) return [];
+
+  const contactIds = contacts.map((c: any) => c.id);
+
+  const { data: dictLinks } = await supabase
+    .from("contacts_dictations")
+    .select("contact_id, dictations(*)")
+    .in("contact_id", contactIds);
+
+  const { data: aliasLinks } = await supabase
+    .from("contacts_aliases")
+    .select("contact_id, aliases(*)")
+    .in("contact_id", contactIds);
+
+  const dictMap: Record<string, Dictation[]> = {};
+  (dictLinks ?? []).forEach((l: any) => {
+    if (!dictMap[l.contact_id]) dictMap[l.contact_id] = [];
+    if (l.dictations) dictMap[l.contact_id].push(l.dictations as Dictation);
+  });
+
+  const aliasMap: Record<string, Alias[]> = {};
+  (aliasLinks ?? []).forEach((l: any) => {
+    if (!aliasMap[l.contact_id]) aliasMap[l.contact_id] = [];
+    if (l.aliases) aliasMap[l.contact_id].push(l.aliases as Alias);
+  });
+
+  return contacts.map((c: any) => ({
+    ...c,
+    group: match,
+    dictations: (dictMap[c.id] ?? []).sort(
+      (a: Dictation, b: Dictation) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    ),
+    aliases: aliasMap[c.id] ?? [],
   }));
 }
 

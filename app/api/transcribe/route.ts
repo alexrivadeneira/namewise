@@ -38,12 +38,16 @@ export async function POST(req: NextRequest) {
       messages: [
         {
           role: "system",
-          content: `You are a precise relationship data assistant. Analyze the voice transcript and return a JSON object with exactly four keys:
+          content: `You are a precise relationship data assistant. Analyze the voice transcript and return a JSON object with exactly five keys:
 
 1. "transcript": The clean, punctuated text of what was spoken.
 2. "detected_names": An array of strings containing the unique first names (or nicknames) of human individuals mentioned. Return only names of real people — not companies, products, or locations. If no people are named, return [].
-3. "intent": Either "query" if the user is asking to be reminded about or briefed on a person (e.g. "remind me about Bob", "what do I know about Sarah", "tell me about Mike"), or "dictation" for everything else.
-4. "query_name": If intent is "query", the single name being asked about as a string. Otherwise null.
+3. "intent": One of three values:
+   - "contact_query" if the user is asking to be reminded about a specific person (e.g. "remind me about Bob", "what do I know about Sarah")
+   - "group_query" if the user is asking about a group of people (e.g. "tell me about everyone at the conference", "who do I know from work", "remind me about my college friends")
+   - "dictation" for everything else
+4. "query_name": If intent is "contact_query", the single name being asked about. Otherwise null.
+5. "query_group": If intent is "group_query", the group name being asked about as a short string (e.g. "conference", "work", "college friends"). Otherwise null.
 
 Output only valid JSON, no commentary.`,
         },
@@ -63,6 +67,7 @@ Output only valid JSON, no commentary.`,
       detected_names: structuredData.detected_names || [],
       intent: structuredData.intent || "dictation",
       query_name: structuredData.query_name || null,
+      query_group: structuredData.query_group || null,
     });
   } catch (error: any) {
     console.error("Transcribe API error:", error);

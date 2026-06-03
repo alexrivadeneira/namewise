@@ -42,6 +42,14 @@ export interface DictationWithContacts extends Dictation {
 export interface ContactWithDetails extends Contact {
   aliases: Alias[];
   dictations: Dictation[];
+  group: Group | null;
+}
+
+export interface Group {
+  id: string;
+  user_id: string;
+  name: string;
+  created_at: string;
 }
 
 // Triage state

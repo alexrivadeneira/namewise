@@ -1,8 +1,13 @@
+"use client";
+
 import { useEffect, useState } from "react";
-import type { ContactWithDetails } from "@/lib/types";
+import type { ContactWithDetails, Group } from "@/lib/types";
+import { assignContactToGroup } from "@/lib/queries";
 
 interface ContactCardProps {
   contact: ContactWithDetails;
+  groups: Group[];
+  onGroupChanged: () => void;
 }
 
 function formatDate(iso: string) {
@@ -13,9 +18,10 @@ function formatDate(iso: string) {
   });
 }
 
-export default function ContactCard({ contact }: ContactCardProps) {
+export default function ContactCard({ contact, groups, onGroupChanged }: ContactCardProps) {
   const [summary, setSummary] = useState<string | null>(null);
   const [loadingSummary, setLoadingSummary] = useState(false);
+  const [assigningGroup, setAssigningGroup] = useState(false);
 
   useEffect(() => {
     if (contact.dictations.length === 0) return;
@@ -34,10 +40,38 @@ export default function ContactCard({ contact }: ContactCardProps) {
       .finally(() => setLoadingSummary(false));
   }, [contact.id]);
 
+  async function handleGroupChange(e: React.ChangeEvent<HTMLSelectElement>) {
+    const value = e.target.value;
+    setAssigningGroup(true);
+    await assignContactToGroup(contact.id, value === "" ? null : value);
+    setAssigningGroup(false);
+    onGroupChanged();
+  }
+
   return (
     <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
       <div className="flex items-start justify-between mb-2">
         <h3 className="text-lg font-semibold text-gray-800">{contact.name}</h3>
+        {contact.group && (
+          <span className="px-2 py-0.5 bg-indigo-100 text-indigo-600 text-xs rounded-full">
+            {contact.group.name}
+          </span>
+        )}
+      </div>
+
+      {/* Group assignment */}
+      <div className="mb-3">
+        <select
+          value={contact.group?.id ?? ""}
+          onChange={handleGroupChange}
+          disabled={assigningGroup}
+          className="text-xs text-gray-500 border border-gray-200 rounded-lg px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-indigo-300"
+        >
+          <option value="">No group</option>
+          {groups.map((g) => (
+            <option key={g.id} value={g.id}>{g.name}</option>
+          ))}
+        </select>
       </div>
 
       {contact.aliases.length > 0 && (

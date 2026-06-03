@@ -3,7 +3,7 @@
 import { useState, useRef } from "react";
 
 interface RecordButtonProps {
-  onTranscription: (transcript: string, detectedNames: string[], intent: string, queryName: string | null) => void;
+  onTranscription: (transcript: string, detectedNames: string[], intent: string, queryName: string | null, queryGroup: string | null) => void;
   disabled?: boolean;
 }
 
@@ -49,7 +49,7 @@ export default function RecordButton({ onTranscription, disabled }: RecordButton
 
       if (!res.ok) throw new Error(data.error || "Transcription failed");
 
-      onTranscription(data.transcript, data.detected_names ?? [], data.intent ?? "dictation", data.query_name ?? null);
+      onTranscription(data.transcript, data.detected_names ?? [], data.intent ?? "dictation", data.query_name ?? null, data.query_group ?? null);
     } catch (err) {
       console.error(err);
       alert("Recording failed. Please try again.");
