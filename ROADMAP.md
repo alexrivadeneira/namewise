@@ -80,6 +80,17 @@ Only fires the expensive LLM call in the rare ambiguous case. Happy path (unique
 
 ---
 
+## 🧪 Tests to add
+
+- `17-marcus-schmidt-new.m4a` — "I met Marcus Schmidt at the gym today" → contact created as "Marcus Schmidt" not "Marcus"
+- `18-dr-chan-new.m4a` — "I had coffee with Dr. Chan this morning" → contact created as "Dr. Chan"
+- Full name auto-links to existing first-name contact — "I saw Marcus Schmidt" where "Marcus" already exists → auto-links, no triage
+- Two contacts with same first name → goes to triage instead of auto-linking
+- Alias auto-links — contact "Marcus" has alias "Marc", dictation says "I saw Marc" → auto-links without triage
+- Summary caching — after first view, second view of contacts tab should read from DB not call Groq
+
+---
+
 ## 🐛 Known issues / tech debt
 
 - Test 12 (group query for "work") intermittently fails — LLM doesn't always classify as group_query
