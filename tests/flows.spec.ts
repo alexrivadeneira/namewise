@@ -54,8 +54,8 @@ test("03 — Marcus and Jamie auto-linked, no triage prompt", async ({ page }) =
   await expect(page.getByText(/stressed about work/i)).toBeVisible();
   // Verify both contact tags appear on the dictation card
   const dictationCard = page.locator(".space-y-3 > div").filter({ hasText: /stressed about work/i });
-  await expect(dictationCard.locator("span").filter({ hasText: "Marcus" })).toBeVisible();
-  await expect(dictationCard.locator("span").filter({ hasText: "Jamie" })).toBeVisible();
+  await expect(dictationCard.locator("button").filter({ hasText: "Marcus" })).toBeVisible();
+  await expect(dictationCard.locator("button").filter({ hasText: "Jamie" })).toBeVisible();
 });
 
 // ─── 4. Two existing contacts auto-linked ─────────────────────────────────────
@@ -152,7 +152,7 @@ test("11 — group query for Toastmasters shows Marcus briefing", async ({ page 
   await page.getByRole("button", { name: "Add group" }).click();
   await page.waitForTimeout(500);
 
-  await page.getByRole("heading", { name: "Marcus" }).locator("..").locator("..").locator("select").selectOption({ label: "Toastmasters" });
+  await page.locator(".space-y-4 > div").filter({ hasText: "Marcus" }).locator("select").selectOption({ label: "Toastmasters" });
   await page.waitForTimeout(500);
 
   await goToDictations(page);
@@ -175,7 +175,7 @@ test.skip("12 — group query for work shows Jamie, Connor, Derek", async ({ pag
   await page.waitForTimeout(500);
 
   for (const name of ["Jamie", "Connor", "Derek"]) {
-    await page.getByRole("heading", { name }).locator("..").locator("..").locator("select").selectOption({ label: "Work" });
+    await page.locator(".space-y-4 > div").filter({ hasText: name }).locator("select").selectOption({ label: "Work" });
     await page.waitForTimeout(300);
   }
 

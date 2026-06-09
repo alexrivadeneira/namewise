@@ -116,6 +116,32 @@ export async function getContactsWithDetails(): Promise<ContactWithDetails[]> {
   }));
 }
 
+export async function deleteContact(contactId: string): Promise<void> {
+  const supabase = createClient();
+  const { error } = await supabase.from("contacts").delete().eq("id", contactId);
+  if (error) throw error;
+}
+
+export async function renameContact(contactId: string, name: string): Promise<void> {
+  const supabase = createClient();
+  const { error } = await supabase.from("contacts").update({ name }).eq("id", contactId);
+  if (error) throw error;
+}
+
+export async function deleteAlias(aliasId: string): Promise<void> {
+  const supabase = createClient();
+  // Remove the link and the alias itself
+  await supabase.from("contacts_aliases").delete().eq("alias_id", aliasId);
+  await supabase.from("aliases").delete().eq("id", aliasId);
+}
+
+export async function deleteDictation(dictationId: string): Promise<void> {
+  const supabase = createClient();
+  await supabase.from("contacts_dictations").delete().eq("dictation_id", dictationId);
+  const { error } = await supabase.from("dictations").delete().eq("id", dictationId);
+  if (error) throw error;
+}
+
 // ─── Groups ───────────────────────────────────────────────────────────────────
 
 export async function getGroups(): Promise<Group[]> {
@@ -139,6 +165,14 @@ export async function createGroup(name: string): Promise<Group> {
     .single();
   if (error) throw error;
   return data;
+}
+
+export async function deleteGroup(groupId: string): Promise<void> {
+  const supabase = createClient();
+  // Unassign all contacts in this group first
+  await supabase.from("contacts").update({ group_id: null }).eq("group_id", groupId);
+  const { error } = await supabase.from("groups").delete().eq("id", groupId);
+  if (error) throw error;
 }
 
 export async function assignContactToGroup(contactId: string, groupId: string | null): Promise<void> {

@@ -12,6 +12,7 @@ import {
   linkContactToDictation,
   getGroups,
   createGroup,
+  deleteGroup,
 } from "@/lib/queries";
 import type {
   DictationWithContacts,
@@ -320,7 +321,17 @@ export default function HomePage() {
               No dictations yet. Hit record to start.
             </p>
           ) : (
-            dictations.map((d) => <DictationCard key={d.id} dictation={d} />)
+            dictations.map((d) => (
+              <DictationCard
+                key={d.id}
+                dictation={d}
+                onDeleted={() => refresh(tab)}
+                onContactClick={(name) => {
+                  setSearch(name);
+                  setTab("contacts");
+                }}
+              />
+            ))
           )}
         </div>
       ) : (
@@ -348,17 +359,29 @@ export default function HomePage() {
                 All
               </button>
               {groups.map((g) => (
-                <button
-                  key={g.id}
-                  onClick={() => setActiveGroupId(activeGroupId === g.id ? null : g.id)}
-                  className={`px-3 py-1 text-xs rounded-full border transition-colors ${
-                    activeGroupId === g.id
-                      ? "bg-indigo-600 text-white border-indigo-600"
-                      : "bg-white text-gray-600 border-gray-200 hover:border-indigo-300"
-                  }`}
-                >
-                  {g.name}
-                </button>
+                <div key={g.id} className="flex items-center gap-1">
+                  <button
+                    onClick={() => setActiveGroupId(activeGroupId === g.id ? null : g.id)}
+                    className={`px-3 py-1 text-xs rounded-full border transition-colors ${
+                      activeGroupId === g.id
+                        ? "bg-indigo-600 text-white border-indigo-600"
+                        : "bg-white text-gray-600 border-gray-200 hover:border-indigo-300"
+                    }`}
+                  >
+                    {g.name}
+                  </button>
+                  <button
+                    onClick={async () => {
+                      if (activeGroupId === g.id) setActiveGroupId(null);
+                      await deleteGroup(g.id);
+                      refresh(tab);
+                    }}
+                    className="text-gray-300 hover:text-red-400 transition-colors text-sm leading-none"
+                    title="Delete group"
+                  >
+                    ×
+                  </button>
+                </div>
               ))}
             </div>
           )}
@@ -395,6 +418,9 @@ export default function HomePage() {
                 contact={c}
                 groups={groups}
                 onGroupChanged={() => refresh(tab)}
+                onDeleted={() => refresh(tab)}
+                onRenamed={() => refresh(tab)}
+                onAliasDeleted={() => refresh(tab)}
               />
             ))
           )}
