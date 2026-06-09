@@ -30,6 +30,7 @@ export default function ContactCard({ contact, groups, onGroupChanged }: Contact
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        contactId: contact.id,
         contactName: contact.name,
         dictations: contact.dictations.map((d) => ({ text: d.text, created_at: d.created_at })),
       }),

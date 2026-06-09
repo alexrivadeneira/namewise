@@ -7,6 +7,7 @@ create table contacts (
   user_id uuid not null references auth.users(id) on delete cascade,
   name text not null,
   group_id uuid, -- set after groups table is created below
+  summary text,  -- cached AI-generated relationship summary, cleared when new dictations are linked
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );

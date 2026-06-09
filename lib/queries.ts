@@ -290,10 +290,10 @@ export async function linkContactToDictation({
     }
   }
 
-  // Touch updated_at on contact so it floats to top
+  // Touch updated_at and clear cached summary (new dictation = stale summary)
   await supabase
     .from("contacts")
-    .update({ updated_at: new Date().toISOString() })
+    .update({ updated_at: new Date().toISOString(), summary: null })
     .eq("id", contactId);
 }
 
@@ -319,6 +319,12 @@ export async function createContactAndLink({
   await supabase
     .from("contacts_dictations")
     .insert({ contact_id: contact.id, dictation_id: dictationId, user_id: user.id });
+
+  // Clear cached summary — will regenerate on next contact view
+  await supabase
+    .from("contacts")
+    .update({ summary: null })
+    .eq("id", contact.id);
 
   return contact;
 }
