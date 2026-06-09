@@ -34,13 +34,13 @@ Resolution hierarchy — evaluated in order, stopping at first match:
 
 ## 🟢 Quick wins
 
-- ❌ **Delete a dictation** — trash icon per dictation card
-- ❌ **Delete a contact** — no way to remove a mistakenly created contact
-- ❌ **Rename a contact** — no way to fix a wrong name
-- ❌ **Delete a group** — can create but not remove
-- ❌ **Tap contact chip on dictation → jump to that contact** — chips are static text, not interactive
-- ❌ **Timestamp on contact card** — "Last mentioned 3 days ago"
-- ❌ **Manual alias management** — ✕ on alias chips on contact card
+- ✅ **Delete a dictation** — trash icon with confirm on each dictation card
+- ✅ **Delete a contact** — × icon with confirm on each contact card
+- ✅ **Rename a contact** — click name to edit inline, Enter to save
+- ✅ **Delete a group** — × next to group filter chip, contacts become ungrouped
+- ✅ **Tap contact chip on dictation → jump to that contact** — switches to Contacts tab and filters
+- ✅ **Timestamp on contact card** — "Last mentioned X days ago"
+- ✅ **Manual alias management** — ✕ on alias chips on contact card
 
 ---
 
