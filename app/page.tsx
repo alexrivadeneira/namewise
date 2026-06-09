@@ -175,9 +175,30 @@ export default function HomePage() {
 
       await Promise.all(
         detectedNames.map(async (name) => {
-          const match = contacts.find(
-            (c) => c.name.toLowerCase() === name.toLowerCase()
-          );
+          const nameLower = name.toLowerCase();
+          const firstName = nameLower.split(" ")[0];
+
+          // 1. Exact name match
+          let match = contacts.find((c) => c.name.toLowerCase() === nameLower);
+
+          // 2. Exact alias match
+          if (!match) {
+            match = contacts.find((c) =>
+              c.aliases.some((a) => a.name.toLowerCase() === nameLower)
+            );
+          }
+
+          // 3. First name match — only if exactly one contact matches
+          if (!match) {
+            const firstNameMatches = contacts.filter(
+              (c) => c.name.toLowerCase().split(" ")[0] === firstName ||
+                c.aliases.some((a) => a.name.toLowerCase().split(" ")[0] === firstName)
+            );
+            if (firstNameMatches.length === 1) {
+              match = firstNameMatches[0];
+            }
+          }
+
           if (match) {
             await linkContactToDictation({
               contactId: match.id,
