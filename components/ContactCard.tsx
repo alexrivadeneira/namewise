@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { ContactWithDetails, Group } from "@/lib/types";
-import { assignContactToGroup, deleteContact, renameContact, deleteAlias } from "@/lib/queries";
+import { assignContactToGroup, deleteContact, renameContact, deleteAlias, deleteDictation } from "@/lib/queries";
 
 interface ContactCardProps {
   contact: ContactWithDetails;
@@ -11,6 +11,7 @@ interface ContactCardProps {
   onDeleted: () => void;
   onRenamed: () => void;
   onAliasDeleted: () => void;
+  onDictationDeleted: () => void;
 }
 
 function timeAgo(iso: string): string {
@@ -28,7 +29,7 @@ function formatDate(iso: string) {
   });
 }
 
-export default function ContactCard({ contact, groups, onGroupChanged, onDeleted, onRenamed, onAliasDeleted }: ContactCardProps) {
+export default function ContactCard({ contact, groups, onGroupChanged, onDeleted, onRenamed, onAliasDeleted, onDictationDeleted }: ContactCardProps) {
   const [summary, setSummary] = useState<string | null>(null);
   const [loadingSummary, setLoadingSummary] = useState(false);
   const [assigningGroup, setAssigningGroup] = useState(false);
@@ -184,9 +185,18 @@ export default function ContactCard({ contact, groups, onGroupChanged, onDeleted
             Mentions ({contact.dictations.length})
           </p>
           {contact.dictations.map((d) => (
-            <div key={d.id} className="text-sm text-gray-600">
-              <span className="text-xs text-gray-400 mr-2">{formatDate(d.created_at)}</span>
-              {d.text.length > 120 ? d.text.slice(0, 120) + "…" : d.text}
+            <div key={d.id} className="flex items-start justify-between gap-2">
+              <div className="text-sm text-gray-600 flex-1">
+                <span className="text-xs text-gray-400 mr-2">{formatDate(d.created_at)}</span>
+                {d.text.length > 120 ? d.text.slice(0, 120) + "…" : d.text}
+              </div>
+              <button
+                onClick={async () => { await deleteDictation(d.id); onDictationDeleted(); }}
+                className="text-gray-300 hover:text-red-400 transition-colors text-lg leading-none shrink-0"
+                title="Delete mention"
+              >
+                ×
+              </button>
             </div>
           ))}
         </div>

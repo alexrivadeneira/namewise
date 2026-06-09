@@ -4,7 +4,6 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { createClient } from "@/lib/supabase-browser";
 import {
   createDictation,
-  getDictationsWithContacts,
   getContactsWithDetails,
   getContactByName,
   getContactsByGroupName,
@@ -28,11 +27,7 @@ import ContactCard from "@/components/ContactCard";
 import BriefingCard from "@/components/BriefingCard";
 import LoginModal from "@/components/LoginModal";
 
-type Tab = "dictations" | "contacts";
-
 export default function HomePage() {
-  const [tab, setTab] = useState<Tab>("dictations");
-  const [dictations, setDictations] = useState<DictationWithContacts[]>([]);
   const [contacts, setContacts] = useState<ContactWithDetails[]>([]);
   const [contactsWithDetails, setContactsWithDetails] = useState<ContactWithDetails[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
@@ -41,6 +36,11 @@ export default function HomePage() {
   const [isAnon, setIsAnon] = useState(true);
   const [briefing, setBriefing] = useState<{ title: string; contacts: { contactName: string; bullets: string[] }[] } | null>(null);
 
+  // ── Transient dictation flash ──────────────────────────────────────────────
+  const [flashDictation, setFlashDictation] = useState<DictationWithContacts | null>(null);
+  const [flashVisible, setFlashVisible] = useState(false);
+  const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // ── Search & filter state ──────────────────────────────────────────────────
   const [search, setSearch] = useState("");
   const [activeGroupId, setActiveGroupId] = useState<string | null>(null);
@@ -48,18 +48,16 @@ export default function HomePage() {
 
   const actionCountRef = useRef(0);
 
-  // ── Auth: ensure anonymous session exists ──────────────────────────────────
+  // ── Auth ───────────────────────────────────────────────────────────────────
   useEffect(() => {
     async function ensureSession() {
       const supabase = createClient();
       const { data: { session } } = await supabase.auth.getSession();
-
       if (!session) {
         await supabase.auth.signInAnonymously();
       } else {
         setIsAnon(session.user.is_anonymous ?? true);
       }
-
       supabase.auth.onAuthStateChange((_event, session) => {
         setIsAnon(session?.user?.is_anonymous ?? true);
       });
@@ -68,7 +66,7 @@ export default function HomePage() {
   }, []);
 
   // ── Load data ──────────────────────────────────────────────────────────────
-  const refresh = useCallback(async (activeTab: Tab = tab) => {
+  const refresh = useCallback(async () => {
     const [ctctsDetail, grps] = await Promise.all([
       getContactsWithDetails(),
       getGroups(),
@@ -76,14 +74,9 @@ export default function HomePage() {
     setContactsWithDetails(ctctsDetail);
     setContacts(ctctsDetail);
     setGroups(grps);
+  }, []);
 
-    if (activeTab === "dictations") {
-      const dicts = await getDictationsWithContacts();
-      setDictations(dicts);
-    }
-  }, [tab]);
-
-  useEffect(() => { refresh(tab); }, [tab]);
+  useEffect(() => { refresh(); }, []);
 
   // ── Filtered contacts ──────────────────────────────────────────────────────
   const filteredContacts = contactsWithDetails.filter((c) => {
@@ -95,6 +88,17 @@ export default function HomePage() {
     return matchesSearch && matchesGroup;
   });
 
+  // ── Flash a dictation briefly after recording ──────────────────────────────
+  function showFlash(dictation: DictationWithContacts) {
+    if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
+    setFlashDictation(dictation);
+    setFlashVisible(true);
+    flashTimerRef.current = setTimeout(() => {
+      setFlashVisible(false);
+      setTimeout(() => setFlashDictation(null), 500); // wait for fade out
+    }, 4000);
+  }
+
   // ── Create group ───────────────────────────────────────────────────────────
   async function handleCreateGroup(e: React.FormEvent) {
     e.preventDefault();
@@ -102,12 +106,12 @@ export default function HomePage() {
     if (!name) return;
     await createGroup(name);
     setNewGroupName("");
-    await refresh(tab);
+    await refresh();
   }
 
-  // ── Deferred login: prompt after first completed triage ────────────────────
+  // ── Deferred login ─────────────────────────────────────────────────────────
   function maybePromptLogin() {
-    if (typeof window !== "undefined" && window.location.port === "3001") return; // disable in test env
+    if (typeof window !== "undefined" && window.location.port === "3001") return;
     actionCountRef.current += 1;
     if (isAnon && actionCountRef.current === 1) {
       setShowLogin(true);
@@ -122,7 +126,7 @@ export default function HomePage() {
     queryName: string | null,
     queryGroup: string | null,
   ) {
-    // ── Contact query: briefing for a single person ──────────────────────────
+    // ── Contact query ────────────────────────────────────────────────────────
     if (intent === "contact_query" && queryName) {
       const contact = await getContactByName(queryName);
       if (!contact || contact.dictations.length === 0) {
@@ -142,7 +146,7 @@ export default function HomePage() {
       return;
     }
 
-    // ── Group query: briefing for everyone in a group ────────────────────────
+    // ── Group query ──────────────────────────────────────────────────────────
     if (intent === "group_query" && queryGroup) {
       const groupContacts = await getContactsByGroupName(queryGroup);
       if (!groupContacts.length) {
@@ -168,7 +172,7 @@ export default function HomePage() {
       return;
     }
 
-    // ── Dictation intent: save, auto-link known contacts, triage the rest ────
+    // ── Dictation ────────────────────────────────────────────────────────────
     const dictation = await createDictation(transcript);
 
     if (detectedNames.length > 0) {
@@ -179,25 +183,18 @@ export default function HomePage() {
           const nameLower = name.toLowerCase();
           const firstName = nameLower.split(" ")[0];
 
-          // 1. Exact name match
           let match = contacts.find((c) => c.name.toLowerCase() === nameLower);
-
-          // 2. Exact alias match
           if (!match) {
             match = contacts.find((c) =>
               c.aliases.some((a) => a.name.toLowerCase() === nameLower)
             );
           }
-
-          // 3. First name match — only if exactly one contact matches
           if (!match) {
             const firstNameMatches = contacts.filter(
               (c) => c.name.toLowerCase().split(" ")[0] === firstName ||
                 c.aliases.some((a) => a.name.toLowerCase().split(" ")[0] === firstName)
             );
-            if (firstNameMatches.length === 1) {
-              match = firstNameMatches[0];
-            }
+            if (firstNameMatches.length === 1) match = firstNameMatches[0];
           }
 
           if (match) {
@@ -220,10 +217,21 @@ export default function HomePage() {
       }
     }
 
-    await refresh("dictations");
+    // Show transient flash of the new dictation
+    const updatedContacts = await getContactsWithDetails();
+    setContactsWithDetails(updatedContacts);
+    setContacts(updatedContacts);
+
+    const linkedContacts = updatedContacts.filter(c =>
+      c.dictations.some(d => d.id === dictation.id)
+    );
+    showFlash({
+      ...dictation,
+      contacts: linkedContacts,
+    });
   }
 
-  // ── Triage: create new contact ─────────────────────────────────────────────
+  // ── Triage ─────────────────────────────────────────────────────────────────
   async function handleCreateNew(name: string) {
     const current = triageQueue[0];
     if (!current) return;
@@ -231,7 +239,6 @@ export default function HomePage() {
     advanceTriage();
   }
 
-  // ── Triage: merge with existing contact ───────────────────────────────────
   async function handleMerge(contactId: string) {
     const current = triageQueue[0];
     if (!current) return;
@@ -245,11 +252,9 @@ export default function HomePage() {
 
   function advanceTriage() {
     setTriageQueue((prev) => prev.slice(1));
-    refresh("dictations");
+    refresh();
     maybePromptLogin();
   }
-
-  // ──────────────────────────────────────────────────────────────────────────
 
   const currentTriage = triageQueue[0] ?? null;
 
@@ -276,6 +281,17 @@ export default function HomePage() {
         />
       </div>
 
+      {/* Transient dictation flash */}
+      {flashDictation && (
+        <div className={`transition-opacity duration-500 ${flashVisible ? "opacity-100" : "opacity-0"}`}>
+          <DictationCard
+            dictation={flashDictation}
+            onDeleted={() => { setFlashDictation(null); refresh(); }}
+            onContactClick={(name) => setSearch(name)}
+          />
+        </div>
+      )}
+
       {/* Briefing card */}
       {briefing && (
         <BriefingCard
@@ -285,7 +301,7 @@ export default function HomePage() {
         />
       )}
 
-      {/* Triage card (only shows the current item) */}
+      {/* Triage card */}
       {currentTriage && (
         <TriageCard
           key={currentTriage.detectedName + currentTriage.dictationId}
@@ -296,138 +312,101 @@ export default function HomePage() {
         />
       )}
 
-      {/* Tabs */}
-      <div className="flex border-b border-gray-200">
-        {(["dictations", "contacts"] as Tab[]).map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`px-5 py-2.5 text-sm font-medium capitalize border-b-2 transition-colors -mb-px
-              ${tab === t
-                ? "border-indigo-600 text-indigo-600"
-                : "border-transparent text-gray-500 hover:text-gray-700"
-              }`}
-          >
-            {t}
-          </button>
-        ))}
-      </div>
+      {/* Contacts */}
+      <div className="space-y-4">
+        {/* Search box */}
+        <input
+          type="text"
+          placeholder="Search contacts or groups…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300"
+        />
 
-      {/* Tab content */}
-      {tab === "dictations" ? (
-        <div className="space-y-3">
-          {dictations.length === 0 ? (
-            <p className="text-gray-400 text-sm text-center py-8">
-              No dictations yet. Hit record to start.
-            </p>
-          ) : (
-            dictations.map((d) => (
-              <DictationCard
-                key={d.id}
-                dictation={d}
-                onDeleted={() => refresh(tab)}
-                onContactClick={(name) => {
-                  setSearch(name);
-                  setTab("contacts");
-                }}
-              />
-            ))
-          )}
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {/* Search box */}
+        {/* Group filter chips */}
+        {groups.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => setActiveGroupId(null)}
+              className={`px-3 py-1 text-xs rounded-full border transition-colors ${
+                activeGroupId === null
+                  ? "bg-indigo-600 text-white border-indigo-600"
+                  : "bg-white text-gray-600 border-gray-200 hover:border-indigo-300"
+              }`}
+            >
+              All
+            </button>
+            {groups.map((g) => (
+              <div key={g.id} className="flex items-center gap-1">
+                <button
+                  onClick={() => setActiveGroupId(activeGroupId === g.id ? null : g.id)}
+                  className={`px-3 py-1 text-xs rounded-full border transition-colors ${
+                    activeGroupId === g.id
+                      ? "bg-indigo-600 text-white border-indigo-600"
+                      : "bg-white text-gray-600 border-gray-200 hover:border-indigo-300"
+                  }`}
+                >
+                  {g.name}
+                </button>
+                <button
+                  onClick={async () => {
+                    if (activeGroupId === g.id) setActiveGroupId(null);
+                    await deleteGroup(g.id);
+                    refresh();
+                  }}
+                  className="text-gray-300 hover:text-red-400 transition-colors text-sm leading-none"
+                  title="Delete group"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Create group */}
+        <form onSubmit={handleCreateGroup} className="flex gap-2">
           <input
             type="text"
-            placeholder="Search contacts or groups…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300"
+            placeholder="New group name…"
+            value={newGroupName}
+            onChange={(e) => setNewGroupName(e.target.value)}
+            className="flex-1 px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300"
           />
+          <button
+            type="submit"
+            disabled={!newGroupName.trim()}
+            className="px-3 py-1.5 text-sm bg-indigo-600 text-white rounded-lg disabled:opacity-40 hover:bg-indigo-700 transition-colors"
+          >
+            Add group
+          </button>
+        </form>
 
-          {/* Group filter chips */}
-          {groups.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              <button
-                onClick={() => setActiveGroupId(null)}
-                className={`px-3 py-1 text-xs rounded-full border transition-colors ${
-                  activeGroupId === null
-                    ? "bg-indigo-600 text-white border-indigo-600"
-                    : "bg-white text-gray-600 border-gray-200 hover:border-indigo-300"
-                }`}
-              >
-                All
-              </button>
-              {groups.map((g) => (
-                <div key={g.id} className="flex items-center gap-1">
-                  <button
-                    onClick={() => setActiveGroupId(activeGroupId === g.id ? null : g.id)}
-                    className={`px-3 py-1 text-xs rounded-full border transition-colors ${
-                      activeGroupId === g.id
-                        ? "bg-indigo-600 text-white border-indigo-600"
-                        : "bg-white text-gray-600 border-gray-200 hover:border-indigo-300"
-                    }`}
-                  >
-                    {g.name}
-                  </button>
-                  <button
-                    onClick={async () => {
-                      if (activeGroupId === g.id) setActiveGroupId(null);
-                      await deleteGroup(g.id);
-                      refresh(tab);
-                    }}
-                    className="text-gray-300 hover:text-red-400 transition-colors text-sm leading-none"
-                    title="Delete group"
-                  >
-                    ×
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Create group */}
-          <form onSubmit={handleCreateGroup} className="flex gap-2">
-            <input
-              type="text"
-              placeholder="New group name…"
-              value={newGroupName}
-              onChange={(e) => setNewGroupName(e.target.value)}
-              className="flex-1 px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300"
+        {/* Contact cards */}
+        {contactsWithDetails.length === 0 ? (
+          <p className="text-gray-400 text-sm text-center py-12">
+            No contacts yet — start by recording a voice memo.
+          </p>
+        ) : filteredContacts.length === 0 ? (
+          <p className="text-gray-400 text-sm text-center py-8">
+            No contacts match your search.
+          </p>
+        ) : (
+          filteredContacts.map((c) => (
+            <ContactCard
+              key={c.id}
+              contact={c}
+              groups={groups}
+              onGroupChanged={refresh}
+              onDeleted={refresh}
+              onRenamed={refresh}
+              onAliasDeleted={refresh}
+              onDictationDeleted={refresh}
             />
-            <button
-              type="submit"
-              disabled={!newGroupName.trim()}
-              className="px-3 py-1.5 text-sm bg-indigo-600 text-white rounded-lg disabled:opacity-40 hover:bg-indigo-700 transition-colors"
-            >
-              Add group
-            </button>
-          </form>
+          ))
+        )}
+      </div>
 
-          {/* Contact cards */}
-          {filteredContacts.length === 0 ? (
-            <p className="text-gray-400 text-sm text-center py-8">
-              {contactsWithDetails.length === 0
-                ? "No contacts yet. They'll appear after you mention someone in a dictation."
-                : "No contacts match your search."}
-            </p>
-          ) : (
-            filteredContacts.map((c) => (
-              <ContactCard
-                key={c.id}
-                contact={c}
-                groups={groups}
-                onGroupChanged={() => refresh(tab)}
-                onDeleted={() => refresh(tab)}
-                onRenamed={() => refresh(tab)}
-                onAliasDeleted={() => refresh(tab)}
-              />
-            ))
-          )}
-        </div>
-      )}
-
-      {/* Deferred login modal */}
       {showLogin && <LoginModal onDismiss={() => setShowLogin(false)} />}
     </div>
   );
