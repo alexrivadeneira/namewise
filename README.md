@@ -2,6 +2,19 @@
 
 Voice-powered relationship notes. Dictate who you met, and Namewise tracks them.
 
+---
+
+## Use cases
+
+**Personal networking**
+Remember details about people you don't see often enough to naturally retain — conference contacts, friends-of-friends, colleagues at other companies. Brief yourself before you see them.
+
+**Team version**
+A shared relationship memory for sales teams, VC firms, recruiting teams, or any group that collectively manages relationships. Everyone contributes notes and the whole team benefits from the shared context.
+
+**Memory aid**
+For people with social anxiety, ADHD, early memory challenges, or anyone who struggles to retain details about people — Namewise acts as an external memory. "Who is this person calling me?" Pull up everything you recorded about them in seconds.
+
 ## Stack
 
 - **Next.js 14** (App Router) — frontend + API routes
