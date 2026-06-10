@@ -91,7 +91,7 @@ export default function RecordButton({ onTranscription, disabled }: RecordButton
     <div className="flex flex-col items-center gap-4">
       {/* Prompt text */}
       <p
-        className={`text-sm text-gray-400 italic text-center max-w-xs transition-opacity duration-400 h-5 ${
+        className={`text-sm text-[#b9b9b9] italic text-center max-w-xs transition-opacity duration-400 h-5 ${
           recording ? "opacity-0" : processing ? "opacity-0" : fade ? "opacity-100" : "opacity-0"
         }`}
       >
@@ -107,7 +107,7 @@ export default function RecordButton({ onTranscription, disabled }: RecordButton
             ? "bg-red-500 scale-110 shadow-red-200 shadow-xl"
             : processing
             ? "bg-gray-300 cursor-not-allowed"
-            : "bg-indigo-600 hover:bg-indigo-700 hover:scale-105 active:scale-95"
+            : "bg-black hover:bg-gray-900 hover:scale-105 active:scale-95"
           }
           disabled:opacity-50`}
       >
@@ -126,7 +126,7 @@ export default function RecordButton({ onTranscription, disabled }: RecordButton
       </button>
 
       {/* State label */}
-      <p className="text-xs text-gray-400 h-4">
+      <p className="text-xs text-[#b9b9b9] h-4">
         {recording ? "Tap to stop" : processing ? "Thinking…" : ""}
       </p>
     </div>

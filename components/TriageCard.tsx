@@ -33,10 +33,10 @@ export default function TriageCard({
   }
 
   return (
-    <div className="bg-amber-50 border border-amber-200 rounded-xl p-5 shadow-sm">
-      <p className="text-sm text-amber-700 font-medium mb-1">New person detected</p>
-      <p className="text-lg font-semibold text-gray-800 mb-4">
-        You mentioned <span className="text-indigo-600">{detectedName}</span>. Is this a new
+    <div className="bg-white border border-[#b9b9b9] rounded-xl p-5 shadow-sm">
+      <p className="text-sm text-[#b9b9b9] font-medium mb-1">New person detected</p>
+      <p className="text-lg font-semibold text-black mb-4">
+        You mentioned <span className="text-black">{detectedName}</span>. Is this a new
         contact or someone you already know?
       </p>
 
@@ -44,7 +44,7 @@ export default function TriageCard({
         <button
           onClick={handleCreateNew}
           disabled={loading}
-          className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+          className="px-4 py-2 bg-black text-white rounded-lg font-medium hover:bg-gray-900 disabled:opacity-50 transition-colors"
         >
           Create new contact
         </button>
@@ -53,7 +53,7 @@ export default function TriageCard({
           <select
             value={selectedContactId}
             onChange={(e) => setSelectedContactId(e.target.value)}
-            className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-300"
+            className="flex-1 border border-[#b9b9b9] rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#b9b9b9]"
           >
             <option value="">Match to existing contact…</option>
             {contacts.map((c) => (

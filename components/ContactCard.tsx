@@ -85,7 +85,7 @@ export default function ContactCard({ contact, groups, onGroupChanged, onDeleted
   const lastDictation = contact.dictations[0];
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
+    <div className="bg-white rounded-xl border border-[#b9b9b9] p-4 shadow-sm">
       {/* Header */}
       <div className="flex items-start justify-between mb-2">
         <div className="flex-1 mr-2">
@@ -95,14 +95,14 @@ export default function ContactCard({ contact, groups, onGroupChanged, onDeleted
                 autoFocus
                 value={editName}
                 onChange={(e) => setEditName(e.target.value)}
-                className="text-lg font-semibold text-gray-800 border-b border-indigo-300 focus:outline-none bg-transparent flex-1"
+                className="text-lg font-semibold text-black border-b border-[#b9b9b9] focus:outline-none bg-transparent flex-1"
               />
-              <button type="submit" className="text-xs text-indigo-600 hover:underline">Save</button>
-              <button type="button" onClick={() => { setIsEditing(false); setEditName(contact.name); }} className="text-xs text-gray-400 hover:underline">Cancel</button>
+              <button type="submit" className="text-xs text-black hover:underline">Save</button>
+              <button type="button" onClick={() => { setIsEditing(false); setEditName(contact.name); }} className="text-xs text-[#b9b9b9] hover:underline">Cancel</button>
             </form>
           ) : (
             <h3
-              className="text-lg font-semibold text-gray-800 cursor-pointer hover:text-indigo-600 transition-colors"
+              className="text-lg font-semibold text-black cursor-pointer hover:text-black transition-colors"
               onClick={() => setIsEditing(true)}
               title="Click to rename"
             >
@@ -110,23 +110,23 @@ export default function ContactCard({ contact, groups, onGroupChanged, onDeleted
             </h3>
           )}
           {lastDictation && (
-            <p className="text-xs text-gray-400 mt-0.5">{timeAgo(lastDictation.created_at)}</p>
+            <p className="text-xs text-[#b9b9b9] mt-0.5">{timeAgo(lastDictation.created_at)}</p>
           )}
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {contact.group && (
-            <span className="px-2 py-0.5 bg-indigo-100 text-indigo-600 text-xs rounded-full">
+            <span className="px-2 py-0.5 bg-[#f0f0f0] text-black text-xs rounded-full">
               {contact.group.name}
             </span>
           )}
           {confirmDelete ? (
             <div className="flex items-center gap-1">
-              <span className="text-xs text-gray-500">Delete?</span>
+              <span className="text-xs text-[#b9b9b9]">Delete?</span>
               <button onClick={handleDelete} className="text-xs text-red-500 hover:underline">Yes</button>
-              <button onClick={() => setConfirmDelete(false)} className="text-xs text-gray-400 hover:underline">No</button>
+              <button onClick={() => setConfirmDelete(false)} className="text-xs text-[#b9b9b9] hover:underline">No</button>
             </div>
           ) : (
-            <button onClick={() => setConfirmDelete(true)} className="text-gray-300 hover:text-red-400 transition-colors text-lg leading-none" title="Delete contact">×</button>
+            <button onClick={() => setConfirmDelete(true)} className="text-[#b9b9b9] hover:text-red-400 transition-colors text-lg leading-none" title="Delete contact">×</button>
           )}
         </div>
       </div>
@@ -137,7 +137,7 @@ export default function ContactCard({ contact, groups, onGroupChanged, onDeleted
           value={contact.group?.id ?? ""}
           onChange={handleGroupChange}
           disabled={assigningGroup}
-          className="text-xs text-gray-500 border border-gray-200 rounded-lg px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-indigo-300"
+          className="text-xs text-[#b9b9b9] border border-[#b9b9b9] rounded-lg px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-[#b9b9b9]"
         >
           <option value="">No group</option>
           {groups.map((g) => (
@@ -152,12 +152,12 @@ export default function ContactCard({ contact, groups, onGroupChanged, onDeleted
           {contact.aliases.map((a) => (
             <span
               key={a.id}
-              className="flex items-center gap-1 px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded-full"
+              className="flex items-center gap-1 px-2 py-0.5 bg-[#f0f0f0] text-black text-xs rounded-full"
             >
               {a.name}
               <button
                 onClick={() => handleDeleteAlias(a.id)}
-                className="text-gray-400 hover:text-red-400 transition-colors leading-none"
+                className="text-[#b9b9b9] hover:text-red-400 transition-colors leading-none"
                 title="Remove alias"
               >
                 ×
@@ -169,9 +169,9 @@ export default function ContactCard({ contact, groups, onGroupChanged, onDeleted
 
       {/* Summary */}
       {(loadingSummary || summary) && (
-        <div className="bg-indigo-50 border border-indigo-100 rounded-lg px-3 py-2 mb-3 text-sm text-indigo-800">
+        <div className="bg-white border border-[#b9b9b9] rounded-lg px-3 py-2 mb-3 text-sm text-black">
           {loadingSummary ? (
-            <span className="text-indigo-400 italic">Summarizing relationship…</span>
+            <span className="text-[#b9b9b9] italic">Summarizing relationship…</span>
           ) : (
             summary
           )}
@@ -180,19 +180,19 @@ export default function ContactCard({ contact, groups, onGroupChanged, onDeleted
 
       {/* Dictations */}
       {contact.dictations.length > 0 && (
-        <div className="border-t border-gray-100 pt-3 mt-3 space-y-2">
-          <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">
+        <div className="border-t border-[#b9b9b9] pt-3 mt-3 space-y-2">
+          <p className="text-xs font-medium text-[#b9b9b9] uppercase tracking-wide">
             Mentions ({contact.dictations.length})
           </p>
           {contact.dictations.map((d) => (
             <div key={d.id} className="flex items-start justify-between gap-2">
-              <div className="text-sm text-gray-600 flex-1">
-                <span className="text-xs text-gray-400 mr-2">{formatDate(d.created_at)}</span>
+              <div className="text-sm text-black flex-1">
+                <span className="text-xs text-[#b9b9b9] mr-2">{formatDate(d.created_at)}</span>
                 {d.text.length > 120 ? d.text.slice(0, 120) + "…" : d.text}
               </div>
               <button
                 onClick={async () => { await deleteDictation(d.id); onDictationDeleted(); }}
-                className="text-gray-300 hover:text-red-400 transition-colors text-lg leading-none shrink-0"
+                className="text-[#b9b9b9] hover:text-red-400 transition-colors text-lg leading-none shrink-0"
                 title="Delete mention"
               >
                 ×

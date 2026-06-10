@@ -266,7 +266,7 @@ export default function HomePage() {
         {isAnon && (
           <button
             onClick={() => setShowLogin(true)}
-            className="text-sm text-indigo-600 hover:underline"
+            className="text-sm text-black hover:underline"
           >
             Save my notes
           </button>
@@ -320,7 +320,7 @@ export default function HomePage() {
           placeholder="Search contacts or groups…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300"
+          className="w-full px-3 py-2 text-sm border border-[#b9b9b9] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#b9b9b9]"
         />
 
         {/* Group filter chips */}
@@ -330,8 +330,8 @@ export default function HomePage() {
               onClick={() => setActiveGroupId(null)}
               className={`px-3 py-1 text-xs rounded-full border transition-colors ${
                 activeGroupId === null
-                  ? "bg-indigo-600 text-white border-indigo-600"
-                  : "bg-white text-gray-600 border-gray-200 hover:border-indigo-300"
+                  ? "bg-black text-white border-black"
+                  : "bg-white text-black border-[#b9b9b9] hover:border-[#b9b9b9]"
               }`}
             >
               All
@@ -342,8 +342,8 @@ export default function HomePage() {
                   onClick={() => setActiveGroupId(activeGroupId === g.id ? null : g.id)}
                   className={`px-3 py-1 text-xs rounded-full border transition-colors ${
                     activeGroupId === g.id
-                      ? "bg-indigo-600 text-white border-indigo-600"
-                      : "bg-white text-gray-600 border-gray-200 hover:border-indigo-300"
+                      ? "bg-black text-white border-black"
+                      : "bg-white text-black border-[#b9b9b9] hover:border-[#b9b9b9]"
                   }`}
                 >
                   {g.name}
@@ -354,7 +354,7 @@ export default function HomePage() {
                     await deleteGroup(g.id);
                     refresh();
                   }}
-                  className="text-gray-300 hover:text-red-400 transition-colors text-sm leading-none"
+                  className="text-[#b9b9b9] hover:text-red-400 transition-colors text-sm leading-none"
                   title="Delete group"
                 >
                   ×
@@ -371,12 +371,12 @@ export default function HomePage() {
             placeholder="New group name…"
             value={newGroupName}
             onChange={(e) => setNewGroupName(e.target.value)}
-            className="flex-1 px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300"
+            className="flex-1 px-3 py-1.5 text-sm border border-[#b9b9b9] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#b9b9b9]"
           />
           <button
             type="submit"
             disabled={!newGroupName.trim()}
-            className="px-3 py-1.5 text-sm bg-indigo-600 text-white rounded-lg disabled:opacity-40 hover:bg-indigo-700 transition-colors"
+            className="px-3 py-1.5 text-sm bg-black text-white rounded-lg disabled:opacity-40 hover:bg-gray-900 transition-colors"
           >
             Add group
           </button>
@@ -384,11 +384,11 @@ export default function HomePage() {
 
         {/* Contact cards */}
         {contactsWithDetails.length === 0 ? (
-          <p className="text-gray-400 text-sm text-center py-12">
+          <p className="text-[#b9b9b9] text-sm text-center py-12">
             No contacts yet — start by recording a voice memo.
           </p>
         ) : filteredContacts.length === 0 ? (
-          <p className="text-gray-400 text-sm text-center py-8">
+          <p className="text-[#b9b9b9] text-sm text-center py-8">
             No contacts match your search.
           </p>
         ) : (
