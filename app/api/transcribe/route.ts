@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
           content: `You are a precise relationship data assistant. Analyze the voice transcript and return a JSON object with exactly five keys:
 
 1. "transcript": The clean, punctuated text of what was spoken.
-2. "detected_names": An array of strings identifying each unique person mentioned. Preserve the exact form used — full name ("Marcus Schmidt"), first name only ("Marcus"), title + last name ("Dr. Chan"), nickname ("Big Mike"), etc. Return only real people — not companies, products, or locations. If no people are named, return [].
+2. "detected_names": An array of strings identifying each unique person mentioned. Preserve the exact form used — full name ("Marcus Schmidt"), first name only ("Marcus"), title + last name ("Dr. Chan"), nickname ("Big Mike"), role or description ("the physical therapist", "my old professor", "the woman from Intel"), etc. Include anyone who could become a contact, even if only described by role or relationship. Return only real people — not companies, products, or locations. If no people are mentioned, return [].
 3. "intent": One of three values:
    - "contact_query" if the user is asking to be reminded about a specific individual person (e.g. "remind me about Bob", "what do I know about Sarah")
    - "group_query" if the user is asking about multiple people or a group — this includes phrases like "tell me about everyone at X", "who do I know from X", "people related to X", "everyone in X's orbit", "X's people", "remind me about my X friends". Note: the group name may look like a person's name (e.g. "Matt Wilcox" could be a group name meaning "Matt Wilcox's circle of people")

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { ContactWithDetails, Group } from "@/lib/types";
-import { assignContactToGroup, deleteContact, renameContact, deleteAlias, deleteDictation } from "@/lib/queries";
+import { assignContactToGroup, deleteContact, renameContact, deleteAlias, deleteDictation, addAlias } from "@/lib/queries";
 
 interface ContactCardProps {
   contact: ContactWithDetails;
@@ -35,6 +35,7 @@ export default function ContactCard({ contact, groups, onGroupChanged, onDeleted
   const [assigningGroup, setAssigningGroup] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(contact.name);
+  const [keepAsAlias, setKeepAsAlias] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   useEffect(() => {
@@ -67,8 +68,10 @@ export default function ContactCard({ contact, groups, onGroupChanged, onDeleted
     e.preventDefault();
     const name = editName.trim();
     if (!name || name === contact.name) { setIsEditing(false); return; }
+    if (keepAsAlias) await addAlias(contact.id, contact.name);
     await renameContact(contact.id, name);
     setIsEditing(false);
+    setKeepAsAlias(false);
     onRenamed();
   }
 
@@ -90,15 +93,28 @@ export default function ContactCard({ contact, groups, onGroupChanged, onDeleted
       <div className="flex items-start justify-between mb-2">
         <div className="flex-1 mr-2">
           {isEditing ? (
-            <form onSubmit={handleRename} className="flex gap-2">
-              <input
-                autoFocus
-                value={editName}
-                onChange={(e) => setEditName(e.target.value)}
-                className="text-lg font-semibold text-black border-b border-[#b9b9b9] focus:outline-none bg-transparent flex-1"
-              />
-              <button type="submit" className="text-xs text-black hover:underline">Save</button>
-              <button type="button" onClick={() => { setIsEditing(false); setEditName(contact.name); }} className="text-xs text-[#b9b9b9] hover:underline">Cancel</button>
+            <form onSubmit={handleRename} className="space-y-1.5">
+              <div className="flex gap-2">
+                <input
+                  autoFocus
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="text-lg font-semibold text-black border-b border-[#b9b9b9] focus:outline-none bg-transparent flex-1"
+                />
+                <button type="submit" className="text-xs text-black hover:underline">Save</button>
+                <button type="button" onClick={() => { setIsEditing(false); setEditName(contact.name); setKeepAsAlias(false); }} className="text-xs text-[#b9b9b9] hover:underline">Cancel</button>
+              </div>
+              {editName.trim() && editName.trim() !== contact.name && (
+                <label className="flex items-center gap-1.5 text-xs text-[#b9b9b9] cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={keepAsAlias}
+                    onChange={(e) => setKeepAsAlias(e.target.checked)}
+                    className="accent-black"
+                  />
+                  Remember "{contact.name}" as an alias
+                </label>
+              )}
             </form>
           ) : (
             <h3

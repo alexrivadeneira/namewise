@@ -128,6 +128,22 @@ export async function renameContact(contactId: string, name: string): Promise<vo
   if (error) throw error;
 }
 
+export async function addAlias(contactId: string, name: string): Promise<void> {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+  const { data: alias } = await supabase
+    .from("aliases")
+    .insert({ name, user_id: user.id })
+    .select()
+    .single();
+  if (alias) {
+    await supabase
+      .from("contacts_aliases")
+      .insert({ contact_id: contactId, alias_id: alias.id, user_id: user.id });
+  }
+}
+
 export async function deleteAlias(aliasId: string): Promise<void> {
   const supabase = createClient();
   // Remove the link and the alias itself

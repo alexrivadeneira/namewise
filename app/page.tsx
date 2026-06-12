@@ -33,7 +33,9 @@ export default function HomePage() {
   const [groups, setGroups] = useState<Group[]>([]);
   const [triageQueue, setTriageQueue] = useState<TriageItem[]>([]);
   const [showLogin, setShowLogin] = useState(false);
+  const [loginMode, setLoginMode] = useState<"save" | "login">("save");
   const [isAnon, setIsAnon] = useState(true);
+  const [hasSession, setHasSession] = useState(false);
   const [briefing, setBriefing] = useState<{ title: string; contacts: { contactName: string; bullets: string[] }[] } | null>(null);
 
   // ── Transient dictation flash ──────────────────────────────────────────────
@@ -57,9 +59,11 @@ export default function HomePage() {
         await supabase.auth.signInAnonymously();
       } else {
         setIsAnon(session.user.is_anonymous ?? true);
+        setHasSession(true);
       }
       supabase.auth.onAuthStateChange((_event, session) => {
         setIsAnon(session?.user?.is_anonymous ?? true);
+        setHasSession(!!session);
       });
     }
     ensureSession();
@@ -114,9 +118,13 @@ export default function HomePage() {
     if (typeof window !== "undefined" && window.location.port === "3001") return;
     actionCountRef.current += 1;
     if (isAnon && actionCountRef.current === 1) {
+      setLoginMode("save");
       setShowLogin(true);
     }
   }
+
+  function openSave() { setLoginMode("save"); setShowLogin(true); }
+  function openLogin() { setLoginMode("login"); setShowLogin(true); }
 
   // ── Recording complete ─────────────────────────────────────────────────────
   async function handleTranscription(
@@ -264,12 +272,14 @@ export default function HomePage() {
       <div className="flex items-center justify-between">
         <img src="/namewise-logo.png" alt="Namewise" className="h-28 w-auto" />
         {isAnon && (
-          <button
-            onClick={() => setShowLogin(true)}
-            className="text-sm text-black hover:underline"
-          >
-            Save my notes
-          </button>
+          <div className="flex gap-4 items-center">
+            <button onClick={openLogin} className="text-sm text-[#b9b9b9] hover:text-black transition-colors">
+              Log in
+            </button>
+            <button onClick={openSave} className="text-sm text-black hover:underline">
+              Save my notes
+            </button>
+          </div>
         )}
       </div>
 
@@ -407,7 +417,7 @@ export default function HomePage() {
         )}
       </div>
 
-      {showLogin && <LoginModal onDismiss={() => setShowLogin(false)} />}
+      {showLogin && <LoginModal mode={loginMode} onDismiss={() => setShowLogin(false)} />}
     </div>
   );
 }
