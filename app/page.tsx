@@ -288,6 +288,8 @@ export default function HomePage() {
         <RecordButton
           onTranscription={handleTranscription}
           disabled={!!currentTriage}
+          contactCount={contacts.length}
+          groupCount={groups.length}
         />
       </div>
 
@@ -325,13 +327,15 @@ export default function HomePage() {
       {/* Contacts */}
       <div className="space-y-4">
         {/* Search box */}
-        <input
-          type="text"
-          placeholder="Search contacts or groups…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full px-3 py-2 text-sm border border-[#b9b9b9] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#b9b9b9]"
-        />
+        {contacts.length > 0 && (
+          <input
+            type="text"
+            placeholder="Search contacts or groups…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full px-3 py-2 text-sm border border-[#b9b9b9] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#b9b9b9]"
+          />
+        )}
 
         {/* Group filter chips */}
         {groups.length > 0 && (
@@ -375,22 +379,24 @@ export default function HomePage() {
         )}
 
         {/* Create group */}
-        <form onSubmit={handleCreateGroup} className="flex gap-2">
-          <input
-            type="text"
-            placeholder="New group name…"
-            value={newGroupName}
-            onChange={(e) => setNewGroupName(e.target.value)}
-            className="flex-1 px-3 py-1.5 text-sm border border-[#b9b9b9] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#b9b9b9]"
-          />
-          <button
-            type="submit"
-            disabled={!newGroupName.trim()}
-            className="px-3 py-1.5 text-sm bg-black text-white rounded-lg disabled:opacity-40 hover:bg-gray-900 transition-colors"
-          >
-            Add group
-          </button>
-        </form>
+        {contacts.length > 0 && (
+          <form onSubmit={handleCreateGroup} className="flex gap-2">
+            <input
+              type="text"
+              placeholder="New group name…"
+              value={newGroupName}
+              onChange={(e) => setNewGroupName(e.target.value)}
+              className="flex-1 px-3 py-1.5 text-sm border border-[#b9b9b9] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#b9b9b9]"
+            />
+            <button
+              type="submit"
+              disabled={!newGroupName.trim()}
+              className="px-3 py-1.5 text-sm bg-black text-white rounded-lg disabled:opacity-40 hover:bg-gray-900 transition-colors"
+            >
+              Add group
+            </button>
+          </form>
+        )}
 
         {/* Contact cards */}
         {contactsWithDetails.length === 0 ? (

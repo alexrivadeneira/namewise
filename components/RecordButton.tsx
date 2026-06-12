@@ -5,18 +5,21 @@ import { useState, useRef, useEffect } from "react";
 interface RecordButtonProps {
   onTranscription: (transcript: string, detectedNames: string[], intent: string, queryName: string | null, queryGroup: string | null) => void;
   disabled?: boolean;
+  contactCount?: number;
+  groupCount?: number;
 }
 
 const PROMPTS = [
-  "I ran into Sarah at the farmer's market today...",
-  "Remind me about Marcus...",
+  "I met Alice today, she teaches in the philosophy department at cal",
+  "Remind me what Marcus is up to, I'm going to see him soon",
   "Tell me about everyone from the conference...",
   "Met a new guy named Derek at the gym...",
   "What do I know about Jamie?",
-  "Tell me about my work people...",
+  "Tell me what I've recorded about my doctor..",
 ];
 
-export default function RecordButton({ onTranscription, disabled }: RecordButtonProps) {
+export default function RecordButton({ onTranscription, disabled, contactCount = 0, groupCount = 0 }: RecordButtonProps) {
+  const showPrompts = !(contactCount >= 10 && groupCount >= 5);
   const [recording, setRecording] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [promptIndex, setPromptIndex] = useState(0);
@@ -90,13 +93,15 @@ export default function RecordButton({ onTranscription, disabled }: RecordButton
   return (
     <div className="flex flex-col items-center gap-4">
       {/* Prompt text */}
-      <p
-        className={`text-sm text-[#b9b9b9] italic text-center max-w-xs transition-opacity duration-400 h-5 ${
-          recording ? "opacity-0" : processing ? "opacity-0" : fade ? "opacity-100" : "opacity-0"
-        }`}
-      >
-        "{PROMPTS[promptIndex]}"
-      </p>
+      {showPrompts && (
+        <p
+          className={`text-sm text-[#b9b9b9] italic text-center px-6 max-w-[min(20rem,80vw)] transition-opacity duration-400 min-h-[2.5rem] flex items-end justify-center ${
+            recording ? "opacity-0" : processing ? "opacity-0" : fade ? "opacity-100" : "opacity-0"
+          }`}
+        >
+          "{PROMPTS[promptIndex]}"
+        </p>
+      )}
 
       {/* Mic button */}
       <button
