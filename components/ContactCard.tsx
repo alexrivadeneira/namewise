@@ -54,7 +54,7 @@ export default function ContactCard({ contact, groups, onGroupChanged, onDeleted
       .then((data) => setSummary(data.summary ?? null))
       .catch(() => setSummary(null))
       .finally(() => setLoadingSummary(false));
-  }, [contact.id]);
+  }, [contact.id, contact.dictations.length]);
 
   async function handleGroupChange(e: React.ChangeEvent<HTMLSelectElement>) {
     const value = e.target.value;
