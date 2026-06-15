@@ -47,6 +47,9 @@ export default function HomePage() {
   const [search, setSearch] = useState("");
   const [activeGroupId, setActiveGroupId] = useState<string | null>(null);
   const [newGroupName, setNewGroupName] = useState("");
+  const [expandedContactIds, setExpandedContactIds] = useState<Set<string>>(new Set());
+  const [collapsedGroupIds, setCollapsedGroupIds] = useState<Set<string>>(new Set());
+  const [showNewGroup, setShowNewGroup] = useState(false);
 
   const actionCountRef = useRef(0);
 
@@ -81,6 +84,19 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => { refresh(); }, []);
+
+  // ── Auto-expand the 3 most recently updated contacts (initial load only) ───
+  const didAutoExpand = useRef(false);
+  useEffect(() => {
+    if (didAutoExpand.current || contactsWithDetails.length === 0) return;
+    didAutoExpand.current = true;
+    const sorted = [...contactsWithDetails].sort((a, b) => {
+      const aLatest = a.dictations[0]?.created_at ?? a.created_at;
+      const bLatest = b.dictations[0]?.created_at ?? b.created_at;
+      return bLatest.localeCompare(aLatest);
+    });
+    setExpandedContactIds(new Set(sorted.slice(0, 3).map((c) => c.id)));
+  }, [contactsWithDetails]);
 
   // ── Filtered contacts ──────────────────────────────────────────────────────
   const filteredContacts = contactsWithDetails.filter((c) => {
@@ -326,66 +342,34 @@ export default function HomePage() {
 
       {/* Contacts */}
       <div className="space-y-4">
-        {/* Search box */}
+        {/* Search + new group toolbar */}
         {contacts.length > 0 && (
-          <input
-            type="text"
-            placeholder="Search contacts or groups…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full px-3 py-2 text-sm border border-[#b9b9b9] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#b9b9b9]"
-          />
-        )}
-
-        {/* Group filter chips */}
-        {groups.length > 0 && (
-          <div className="flex flex-wrap gap-2">
+          <div className="flex gap-2 items-center">
+            <input
+              type="text"
+              placeholder="Search…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="flex-1 px-3 py-2 text-sm border border-[#b9b9b9] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#b9b9b9]"
+            />
             <button
-              onClick={() => setActiveGroupId(null)}
-              className={`px-3 py-1 text-xs rounded-full border transition-colors ${
-                activeGroupId === null
-                  ? "bg-black text-white border-black"
-                  : "bg-white text-black border-[#b9b9b9] hover:border-[#b9b9b9]"
-              }`}
+              onClick={() => setShowNewGroup((v) => !v)}
+              className="px-3 py-2 text-sm border border-[#b9b9b9] rounded-lg hover:border-black transition-colors whitespace-nowrap"
+              title="New group"
             >
-              All
+              + group
             </button>
-            {groups.map((g) => (
-              <div key={g.id} className="flex items-center gap-1">
-                <button
-                  onClick={() => setActiveGroupId(activeGroupId === g.id ? null : g.id)}
-                  className={`px-3 py-1 text-xs rounded-full border transition-colors ${
-                    activeGroupId === g.id
-                      ? "bg-black text-white border-black"
-                      : "bg-white text-black border-[#b9b9b9] hover:border-[#b9b9b9]"
-                  }`}
-                >
-                  {g.name}
-                </button>
-                <button
-                  onClick={async () => {
-                    if (activeGroupId === g.id) setActiveGroupId(null);
-                    await deleteGroup(g.id);
-                    refresh();
-                  }}
-                  className="text-[#b9b9b9] hover:text-red-400 transition-colors text-sm leading-none"
-                  title="Delete group"
-                >
-                  ×
-                </button>
-              </div>
-            ))}
           </div>
         )}
 
-        {/* Create group */}
-        {contacts.length > 0 && (
-          <form onSubmit={handleCreateGroup} className="flex gap-2">
+        {showNewGroup && (
+          <form onSubmit={async (e) => { await handleCreateGroup(e); setShowNewGroup(false); }} className="flex gap-2">
             <input
               type="text"
-              placeholder="New group name…"
+              placeholder="Group name…"
               value={newGroupName}
               onChange={(e) => setNewGroupName(e.target.value)}
+              autoFocus
               className="flex-1 px-3 py-1.5 text-sm border border-[#b9b9b9] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#b9b9b9]"
             />
             <button
@@ -393,12 +377,12 @@ export default function HomePage() {
               disabled={!newGroupName.trim()}
               className="px-3 py-1.5 text-sm bg-black text-white rounded-lg disabled:opacity-40 hover:bg-gray-900 transition-colors"
             >
-              Add group
+              Create
             </button>
           </form>
         )}
 
-        {/* Contact cards */}
+        {/* Grouped accordion */}
         {contactsWithDetails.length === 0 ? (
           <p className="text-[#b9b9b9] text-sm text-center py-12">
             No contacts yet — start by recording a voice memo.
@@ -407,20 +391,148 @@ export default function HomePage() {
           <p className="text-[#b9b9b9] text-sm text-center py-8">
             No contacts match your search.
           </p>
-        ) : (
-          filteredContacts.map((c) => (
-            <ContactCard
-              key={c.id}
-              contact={c}
-              groups={groups}
-              onGroupChanged={refresh}
-              onDeleted={refresh}
-              onRenamed={refresh}
-              onAliasDeleted={refresh}
-              onDictationDeleted={refresh}
-            />
-          ))
-        )}
+        ) : (() => {
+          // Sort contacts by most recent dictation
+          const sorted = [...filteredContacts].sort((a, b) => {
+            const aLatest = a.dictations[0]?.created_at ?? a.created_at;
+            const bLatest = b.dictations[0]?.created_at ?? b.created_at;
+            return bLatest.localeCompare(aLatest);
+          });
+
+          // Build sections: one per group, then ungrouped
+          const groupedContacts = new Map<string, { groupId: string; groupName: string; contacts: typeof sorted }>();
+          const ungrouped: typeof sorted = [];
+
+          sorted.forEach((c) => {
+            if (c.group) {
+              if (!groupedContacts.has(c.group.id)) {
+                groupedContacts.set(c.group.id, { groupId: c.group.id, groupName: c.group.name, contacts: [] });
+              }
+              groupedContacts.get(c.group.id)!.contacts.push(c);
+            } else {
+              ungrouped.push(c);
+            }
+          });
+
+          const sections = [
+            ...(ungrouped.length > 0 ? [{ groupId: "__ungrouped__", groupName: "Ungrouped", contacts: ungrouped }] : []),
+            ...Array.from(groupedContacts.values()),
+          ];
+
+          function toggleContact(id: string) {
+            setExpandedContactIds((prev) => {
+              const next = new Set(prev);
+              next.has(id) ? next.delete(id) : next.add(id);
+              return next;
+            });
+          }
+
+          function toggleGroup(id: string) {
+            setCollapsedGroupIds((prev) => {
+              const next = new Set(prev);
+              next.has(id) ? next.delete(id) : next.add(id);
+              return next;
+            });
+          }
+
+          // If no groups exist yet, fall back to flat card view
+          if (sections.length === 1 && sections[0].groupId === "__ungrouped__") {
+            return sorted.map((c) => (
+              <ContactCard
+                key={c.id}
+                contact={c}
+                groups={groups}
+                onGroupChanged={refresh}
+                onDeleted={refresh}
+                onRenamed={refresh}
+                onAliasDeleted={refresh}
+                onDictationDeleted={refresh}
+              />
+            ));
+          }
+
+          return (
+            <div className="space-y-5">
+              {sections.map((section) => {
+                const isCollapsed = collapsedGroupIds.has(section.groupId);
+                return (
+                  <div key={section.groupId}>
+                    {/* Group header */}
+                    <div className="flex items-center justify-between mb-2">
+                      <button
+                        onClick={() => toggleGroup(section.groupId)}
+                        className="flex items-center gap-2 group"
+                      >
+                        <span className="text-sm font-medium underline underline-offset-2 decoration-[#b9b9b9] group-hover:decoration-black transition-colors">
+                          {section.groupName}
+                        </span>
+                        <span className="text-xs text-[#b9b9b9]">{section.contacts.length}</span>
+                        <span className="text-xs text-[#b9b9b9]">{isCollapsed ? "▸" : "▾"}</span>
+                      </button>
+                      {section.groupId !== "__ungrouped__" && (
+                        <button
+                          onClick={async () => {
+                            await deleteGroup(section.groupId);
+                            refresh();
+                          }}
+                          className="text-xs text-[#b9b9b9] hover:text-red-400 transition-colors"
+                        >
+                          delete group
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Contact chips + expanded cards */}
+                    {!isCollapsed && (
+                      <div>
+                        {/* Name list */}
+                        <ul className="mb-3 space-y-1">
+                          {section.contacts.map((c) => {
+                            const isExpanded = expandedContactIds.has(c.id);
+                            const hasRecent = c.dictations.length > 0;
+                            return (
+                              <li key={c.id} className="flex items-center gap-2">
+                                <span className="text-[#b9b9b9] text-xs select-none">•</span>
+                                <button
+                                  onClick={() => toggleContact(c.id)}
+                                  className={`text-sm transition-colors ${
+                                    isExpanded
+                                      ? "font-medium text-black"
+                                      : hasRecent
+                                      ? "text-black hover:underline"
+                                      : "text-[#b9b9b9] hover:text-black"
+                                  }`}
+                                >
+                                  {c.name}
+                                </button>
+                              </li>
+                            );
+                          })}
+                        </ul>
+
+                        {/* Expanded cards */}
+                        <div className="space-y-3">
+                          {section.contacts.filter((c) => expandedContactIds.has(c.id)).map((c) => (
+                            <ContactCard
+                              key={c.id}
+                              contact={c}
+                              groups={groups}
+                              onGroupChanged={refresh}
+                              onDeleted={() => { toggleContact(c.id); refresh(); }}
+                              onRenamed={refresh}
+                              onAliasDeleted={refresh}
+                              onDictationDeleted={refresh}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })()}
       </div>
 
       {showLogin && <LoginModal mode={loginMode} onDismiss={() => setShowLogin(false)} />}
